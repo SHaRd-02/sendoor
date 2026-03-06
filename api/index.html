@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Door Sensor</title>
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  margin-top: 50px;
+}
+.card{
+  border:1px solid #ddd;
+  padding:20px;
+  width:300px;
+  margin:auto;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚪 Sensor Dashboard</h1>
+
+<div class="card">
+<p>Status</p>
+<h2 id="status">Waiting...</h2>
+</div>
+
+<script>
+fetch("/api/app")
+.then(res => res.text())
+.then(data => {
+ document.getElementById("status").innerText = data;
+});
+</script>
+
+</body>
+</html>
