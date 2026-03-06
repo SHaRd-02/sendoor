@@ -5,7 +5,7 @@ import time
 door_status = "closed"
 last_open_time = 0
 
-COOLDOWN = 2  # segundos
+COOLDOWN = 40  # segundos
 
 class handler(BaseHTTPRequestHandler):
 
