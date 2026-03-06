@@ -28,11 +28,22 @@ body {
 </div>
 
 <script>
-fetch("/api/app")
-.then(res => res.text())
-.then(data => {
- document.getElementById("status").innerText = data;
-});
+
+  function getDoorStatus() {
+    fetch("/api/app")
+    .then(res => res.text())
+    .then(data => {
+    document.getElementById("status").innerText = data;
+    });
+  };
+
+
+  setInterval( getDoorStatus, 2000);
+
+
+
+
+
 </script>
 
 </body>
