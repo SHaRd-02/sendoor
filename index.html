@@ -3,18 +3,53 @@
 <head>
 <title>Door Sensor</title>
 <style>
-body {
-  font-family: Arial;
-  text-align: center;
-  margin-top: 50px;
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f4f6f8;
+  text-align:center;
+  margin:0;
+  padding:40px;
 }
+
+h1{
+  margin-bottom:30px;
+}
+
+.container{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
 .card{
-  border:1px solid #ddd;
-  padding:20px;
-  width:300px;
-  margin:auto;
-  border-radius:10px;
+  background:white;
+  border-radius:12px;
+  padding:25px;
+  width:220px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  transition:transform 0.15s ease;
 }
+
+.card:hover{
+  transform:translateY(-4px);
+}
+
+.label{
+  font-size:14px;
+  color:#666;
+}
+
+.value{
+  font-size:28px;
+  margin-top:10px;
+  font-weight:bold;
+}
+
+.open{ color:#27ae60; }
+.closed{ color:#c0392b; }
+.alert{ color:#e67e22; }
+.normal{ color:#2980b9; }
 </style>
 </head>
 
@@ -22,27 +57,49 @@ body {
 
 <h1>🚪 Sensor Dashboard</h1>
 
-<div class="card">
-<p>Status</p>
-<h2 id="status">Waiting...</h2>
+<div class="container">
+
+  <div class="card">
+    <div class="label">Door Sensor</div>
+    <div class="value" id="door">Waiting...</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Gas Sensor</div>
+    <div class="value" id="gas">Waiting...</div>
+  </div>
+
 </div>
 
 <script>
 
-  function getDoorStatus() {
-    fetch("/api/app")
-    .then(res => res.text())
-    .then(data => {
-    document.getElementById("status").innerText = data;
-    });
-  };
+function getSensors(){
 
+  fetch("/api/app")
+  .then(res => res.json())
+  .then(data => {
 
-  setInterval( getDoorStatus, 2000);
+    if(data.door){
+      const doorEl = document.getElementById("door");
+      doorEl.innerText = data.door;
+      doorEl.className = "value " + data.door;
+    }
 
+    if(data.gas){
+      const gasEl = document.getElementById("gas");
+      gasEl.innerText = data.gas;
+      gasEl.className = "value " + data.gas;
+    }
 
+  })
+  .catch(err=>{
+    console.log("API error",err);
+  });
 
+}
 
+setInterval(getSensors,2000);
+getSensors();
 
 </script>
 
