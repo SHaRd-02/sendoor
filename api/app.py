@@ -35,62 +35,52 @@ def send_push_notification(payload_dict):
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-        global sensor_status, subscriptions
-
         content_length = int(self.headers.get('Content-Length', 0))
+        if content_length == 0:
+            self.send_response(400)
+            self.end_headers()
+            return
+
         body = self.rfile.read(content_length)
 
         try:
             data = json.loads(body.decode())
         except Exception as e:
-            print("Error parsing JSON:", e)
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+            self.wfile.write(json.dumps({"error": "Malformed JSON"}).encode())
             return
 
-        # If payload contains a push subscription
+        # Registro de suscripciones
         if "endpoint" in data:
-            subscriptions.append(data)
-            print("New push subscription registered")
-
+            if data not in subscriptions:
+                subscriptions.append(data)
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "subscription stored"}).encode())
+            self.wfile.write(json.dumps({"status": "stored"}).encode())
             return
 
-        # Otherwise treat it as a sensor update
+        # Actualización de sensores
         sensor = data.get("sensor")
         status = data.get("status")
 
-        if sensor and status:
+        if sensor in sensor_status:
             sensor_status[sensor] = status
-            print(f"Sensor '{sensor}' updated:", status)
-
+            
+            # Notificaciones Push
             try:
-                # If door opens, send push notification
                 if sensor == "door" and status == "open":
-                    send_push_notification({
-                        "title": "Door Alert",
-                        "body": "The door was opened"
-                    })
-
-                # If door opens, send push notification
-                if sensor == "gas" and status == "alert":
-                    send_push_notification({
-                        "title": "Gas Alert",
-                        "body": "Dangerous gas has been detected"
-                    })
+                    send_push_notification({"title": "Alerta Puerta", "body": "Abierta"})
+                
+                # REVISA ESTO: En tu ESP32 mandas "danger", pero aquí buscas "alert"
+                if sensor == "gas" and (status == "alert" or status == "alert"):
+                    send_push_notification({"title": "Alerta Gas", "body": "Peligro detectado"})
             except Exception as e:
-                print("Error parsing JSON:", e)
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
-                return
-
+                print(f"Error en Push: {e}") 
+                # No retornamos error 400 aquí para que el ESP32 reciba el OK
+        
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
