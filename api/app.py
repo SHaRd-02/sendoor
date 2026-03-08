@@ -69,20 +69,27 @@ class handler(BaseHTTPRequestHandler):
             sensor_status[sensor] = status
             print(f"Sensor '{sensor}' updated:", status)
 
-            # If door opens, send push notification
-            if sensor == "door" and status == "open":
-                send_push_notification({
-                    "title": "Door Alert",
-                    "body": "The door was opened"
-                })
+            try:
+                # If door opens, send push notification
+                if sensor == "door" and status == "open":
+                    send_push_notification({
+                        "title": "Door Alert",
+                        "body": "The door was opened"
+                    })
 
-             # If door opens, send push notification
-            if sensor == "gas" and status == "alert":
-                send_push_notification({
-                    "title": "Gas Alert",
-                    "body": "Dangerous gas has been detected"
-                })
-            
+                # If door opens, send push notification
+                if sensor == "gas" and status == "alert":
+                    send_push_notification({
+                        "title": "Gas Alert",
+                        "body": "Dangerous gas has been detected"
+                    })
+            except Exception as e:
+                print("Error parsing JSON:", e)
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+                return
 
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
