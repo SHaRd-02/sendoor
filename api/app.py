@@ -91,6 +91,14 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(b"OK")
 
     def do_GET(self):
+
+        response = {
+            "door": door_status,
+            "gas": gas_status
+        }
+
         self.send_response(200)
+        self.send_header("Content-Type","application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(sensor_status).encode())
+
+        self.wfile.write(json.dumps(response).encode())
