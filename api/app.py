@@ -45,8 +45,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             print("Error parsing JSON:", e)
             self.send_response(400)
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(b"Invalid JSON")
+            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
             return
 
         # If payload contains a push subscription
@@ -55,8 +56,9 @@ class handler(BaseHTTPRequestHandler):
             print("New push subscription registered")
 
             self.send_response(200)
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(b"Subscription stored")
+            self.wfile.write(json.dumps({"status": "subscription stored"}).encode())
             return
 
         # Otherwise treat it as a sensor update
@@ -83,10 +85,12 @@ class handler(BaseHTTPRequestHandler):
             
 
         self.send_response(200)
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(b"OK")
+        self.wfile.write(json.dumps({"status": "ok"}).encode())
 
     def do_GET(self):
         self.send_response(200)
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(sensor_status).encode())
