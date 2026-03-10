@@ -16,7 +16,11 @@
 
 <title>Door Sensor</title>
 <style>
-b
+h1{
+  margin: 10px auto;
+  text-align: center;
+  max-width: 900px;
+}
 
 .value{
   font-size:28px;
@@ -38,16 +42,19 @@ b
 <body>
 
 <h1>🚪 Sendoor Dashboard</h1>
+<div class="box" style="text-align:center;margin-bottom:15px;">
+  <button id="enableNotifications" style="padding:10px 16px;font-size:16px;display:none;">🔔 Activar notificaciones</button>
+</div>
 
 <div class="stack layout-readable">
 
   <div class="box">
-    <div class="label">Door Sensor</div>
+    <h5>Door Sensor</h5>
     <div class="value" id="door">Waiting...</div>
   </div>
 
   <div class="box">
-    <div class="label">Gas Sensor</div>
+    <h5>Gas Sensor</h5>
     <div class="value" id="gas">Waiting...</div>
   </div>
 
@@ -120,34 +127,37 @@ async function registerPush(){
 async function askNotificationPermission(){
 
   const savedChoice = localStorage.getItem("notifications_choice");
+  const btn = document.getElementById("enableNotifications");
 
-  // If user already answered before
+  // If already granted before, subscribe automatically
   if(savedChoice === "granted"){
     registerPush();
     return;
   }
 
+  // If user denied before, do nothing
   if(savedChoice === "denied"){
     console.log("User previously denied notifications");
     return;
   }
 
-  // Ask only the first time
-  const allow = confirm("¿Quieres recibir notificaciones cuando el sensor detecte actividad?");
+  // Show button so user can trigger permission with a real click (required on iOS)
+  btn.style.display = "inline-block";
 
-  if(!allow){
-    localStorage.setItem("notifications_choice","denied");
-    return;
-  }
+  btn.addEventListener("click", async () => {
 
-  const permission = await Notification.requestPermission();
+    const permission = await Notification.requestPermission();
 
-  if(permission === "granted"){
-    localStorage.setItem("notifications_choice","granted");
-    registerPush();
-  }else{
-    localStorage.setItem("notifications_choice","denied");
-  }
+    if(permission === "granted"){
+      localStorage.setItem("notifications_choice","granted");
+      btn.style.display = "none";
+      registerPush();
+    }else{
+      localStorage.setItem("notifications_choice","denied");
+      btn.style.display = "none";
+    }
+
+  });
 
 }
 
