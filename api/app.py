@@ -40,13 +40,17 @@ def send_push_notification(payload_dict):
                 subscription_info=sub,
                 data=payload,
                 vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
+                vapid_claims=VAPID_CLAIMS,
+                ttl=60
             )
 
             print("Push notification sent")
 
         except WebPushException as ex:
             print("Push failed:", ex)
+
+            if ex.response and ex.response.status_code in [404, 410]:
+                redis_client.srem("subscriptions", sub_json)
 
 class handler(BaseHTTPRequestHandler):
 
@@ -90,7 +94,7 @@ class handler(BaseHTTPRequestHandler):
                     send_push_notification({"title": "Alerta Puerta", "body": "Abierta"})
                 
                 # REVISA ESTO: En tu ESP32 mandas "danger", pero aquí buscas "alert"
-                if sensor == "gas" and (status == "alert" or status == "alert"):
+                if sensor == "gas" and (status == "alert" or status == "danger"):
                     send_push_notification({"title": "Alerta Gas", "body": "Peligro detectado"})
             except Exception as e:
                 print(f"Error en Push: {e}") 
