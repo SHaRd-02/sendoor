@@ -1,4 +1,3 @@
 pywebpush
 cryptography
-os
 redis
