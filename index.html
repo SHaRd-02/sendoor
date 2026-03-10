@@ -48,14 +48,23 @@ h1{
 
 <div class="stack layout-readable">
 
+  <div class="box split">
+    <label for="">Activate Sensors</label>
+    <input type="checkbox" id="detectionToggle" class="toggle" style="--toggle-color: var(--green)" />
+  </div>
+
   <div class="box">
     <h5>Door Sensor</h5>
-    <div class="value" id="door">Waiting...</div>
+    <div class="split">
+      <div class="value" id="door">Waiting...</div>
+    </div>
   </div>
 
   <div class="box">
     <h5>Gas Sensor</h5>
-    <div class="value" id="gas">Waiting...</div>
+    <div class="split">
+      <div class="value" id="gas">Waiting...</div>
+    </div>
   </div>
 
 </div>
@@ -168,16 +177,25 @@ function getSensors(){
   .then(res => res.json())
   .then(data => {
 
-    if(data.door){
-      const doorEl = document.getElementById("door");
-      doorEl.innerText = data.door;
-      doorEl.className = "value " + data.door;
+    if(data.sensors){
+
+      if(data.sensors.door){
+        const doorEl = document.getElementById("door");
+        doorEl.innerText = data.sensors.door;
+        doorEl.className = "value " + data.sensors.door;
+      }
+
+      if(data.sensors.gas){
+        const gasEl = document.getElementById("gas");
+        gasEl.innerText = data.sensors.gas;
+        gasEl.className = "value " + data.sensors.gas;
+      }
+
     }
 
-    if(data.gas){
-      const gasEl = document.getElementById("gas");
-      gasEl.innerText = data.gas;
-      gasEl.className = "value " + data.gas;
+    if(typeof data.detection_enabled !== "undefined"){
+      const toggle = document.getElementById("detectionToggle");
+      toggle.checked = data.detection_enabled;
     }
 
   })
@@ -186,6 +204,35 @@ function getSensors(){
   });
 
 }
+
+const detectionToggle = document.getElementById("detectionToggle");
+
+if(detectionToggle){
+
+  detectionToggle.addEventListener("change", async (e)=>{
+
+    const enabled = e.target.checked;
+
+    try{
+
+      await fetch("/api/app",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body: JSON.stringify({ detection: enabled })
+      });
+
+      console.log("Detection state updated:", enabled);
+
+    }catch(err){
+      console.log("Error updating detection state", err);
+    }
+
+  });
+
+}
+
 askNotificationPermission();
 getSensors();
 setInterval(getSensors,2000);

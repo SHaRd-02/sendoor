@@ -25,6 +25,18 @@ sensor_status = {
     "gas": "normal"
 }
 
+# Control remoto de detección (guardado en Redis)
+def detection_enabled():
+    state = redis_client.get("detection_enabled")
+    if state is None:
+        # default habilitado
+        redis_client.set("detection_enabled", "true")
+        return True
+    return state == "true"
+
+
+def set_detection_state(value: bool):
+    redis_client.set("detection_enabled", "true" if value else "false")
 
 
 def send_push_notification(payload_dict):
@@ -72,6 +84,23 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Malformed JSON"}).encode())
             return
 
+        # Control remoto de detección
+        if "detection" in data:
+            new_state = data.get("detection")
+
+            if isinstance(new_state, bool):
+                set_detection_state(new_state)
+            elif isinstance(new_state, str):
+                set_detection_state(new_state.lower() in ["true", "on", "1", "enabled"])
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "detection": detection_enabled()
+            }).encode())
+            return
+
         # Registro de suscripciones
         if "endpoint" in data:
             redis_client.sadd("subscriptions", json.dumps(data))
@@ -88,14 +117,17 @@ class handler(BaseHTTPRequestHandler):
         if sensor in sensor_status:
             sensor_status[sensor] = status
             
-            # Notificaciones Push
+            # Notificaciones Push (solo si detección está habilitada)
             try:
-                if sensor == "door" and status == "open":
-                    send_push_notification({"title": "Alerta Puerta", "body": "Abierta"})
-                
-                # REVISA ESTO: En tu ESP32 mandas "danger", pero aquí buscas "alert"
-                if sensor == "gas" and (status == "alert" or status == "danger"):
-                    send_push_notification({"title": "Alerta Gas", "body": "Peligro detectado"})
+                if not detection_enabled():
+                    print("Detección deshabilitada, no se envía push")
+                else:
+                    if sensor == "door" and status == "open":
+                        send_push_notification({"title": "Alerta Puerta", "body": "Abierta"})
+                    
+                    # REVISA ESTO: En tu ESP32 mandas "danger", pero aquí buscas "alert"
+                    if sensor == "gas" and (status == "alert" or status == "danger"):
+                        send_push_notification({"title": "Alerta Gas", "body": "Peligro detectado"})
             except Exception as e:
                 print(f"Error en Push: {e}") 
                 # No retornamos error 400 aquí para que el ESP32 reciba el OK
@@ -109,4 +141,9 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(sensor_status).encode())
+        response = {
+            "sensors": sensor_status,
+            "detection_enabled": detection_enabled()
+        }
+
+        self.wfile.write(json.dumps(response).encode())
