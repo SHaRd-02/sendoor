@@ -4,8 +4,12 @@ from pywebpush import webpush, WebPushException
 import os
 import redis
 
+# Intentamos obtener cualquiera de las dos, priorizando REDIS_URL
+redis_url = os.environ.get("KV_REDIS_URL") or os.environ.get("REDIS_URL")
+
+# decode_responses=True es clave para que Redis nos devuelva texto y no bytes
 redis_client = redis.Redis.from_url(
-    os.environ.get("REDIS_URL"),
+    redis_url, 
     decode_responses=True
 )
 
