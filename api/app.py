@@ -1,6 +1,13 @@
 from http.server import BaseHTTPRequestHandler
 import json
 from pywebpush import webpush, WebPushException
+import os
+import redis
+
+redis_client = redis.Redis.from_url(
+    os.environ.get("REDIS_URL"),
+    decode_responses=True
+)
 
 VAPID_PUBLIC_KEY = "BPsTWW0G_JdU2W6jAFIhH2PEOostqSapMWugVE-uRB4vOgvWi3g1CO-3y2u4srA4B69RtcVXntVtGITQmhZ6Joo"
 VAPID_PRIVATE_KEY = "hm67NPd_NvUU12h9IlLRhR4WTesxO3tAvwcldZQAGNw"
@@ -15,12 +22,15 @@ sensor_status = {
 }
 
 
-subscriptions = []
 
 def send_push_notification(payload_dict):
     payload = json.dumps(payload_dict)
 
-    for sub in subscriptions:
+    subs = redis_client.smembers("subscriptions")
+
+    for sub_json in subs:
+        sub = json.loads(sub_json)
+
         try:
             webpush(
                 subscription_info=sub,
@@ -28,7 +38,9 @@ def send_push_notification(payload_dict):
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims=VAPID_CLAIMS
             )
+
             print("Push notification sent")
+
         except WebPushException as ex:
             print("Push failed:", ex)
 
@@ -54,8 +66,7 @@ class handler(BaseHTTPRequestHandler):
 
         # Registro de suscripciones
         if "endpoint" in data:
-            if data not in subscriptions:
-                subscriptions.append(data)
+            redis_client.sadd("subscriptions", json.dumps(data))
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
