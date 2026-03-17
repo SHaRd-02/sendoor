@@ -25,6 +25,14 @@ sensor_status = {
     "gas": "normal"
 }
 
+# Control de cooldown para evitar spam de notificaciones
+import time
+last_sent = {
+    "door": 0,
+    "gas": 0
+}
+COOLDOWN_SECONDS = 5
+
 # Control remoto de detección (guardado en Redis)
 def detection_enabled():
     state = redis_client.get("detection_enabled")
@@ -40,6 +48,8 @@ def set_detection_state(value: bool):
 
 
 def send_push_notification(payload_dict):
+    # Agregar timestamp para hacer cada notificación única
+    payload_dict["timestamp"] = time.time()
     payload = json.dumps(payload_dict)
 
     subs = redis_client.smembers("subscriptions")
@@ -117,17 +127,31 @@ class handler(BaseHTTPRequestHandler):
         if sensor in sensor_status:
             sensor_status[sensor] = status
             
-            # Notificaciones Push (solo si detección está habilitada)
+            # Notificaciones Push (solo si detección está habilitada + cooldown)
             try:
                 if not detection_enabled():
                     print("Detección deshabilitada, no se envía push")
                 else:
+                    current_time = time.time()
+
+                    # DOOR
                     if sensor == "door" and status == "open":
-                        send_push_notification({"title": "Alerta Puerta", "body": "Abierta"})
-                    
-                    # REVISA ESTO: En tu ESP32 mandas "danger", pero aquí buscas "alert"
+                        if current_time - last_sent["door"] > COOLDOWN_SECONDS:
+                            send_push_notification({
+                                "title": "Alerta Puerta",
+                                "body": "Abierta"
+                            })
+                            last_sent["door"] = current_time
+
+                    # GAS
                     if sensor == "gas" and (status == "alert" or status == "danger"):
-                        send_push_notification({"title": "Alerta Gas", "body": "Peligro detectado"})
+                        if current_time - last_sent["gas"] > COOLDOWN_SECONDS:
+                            send_push_notification({
+                                "title": "Alerta Gas",
+                                "body": "Peligro detectado"
+                            })
+                            last_sent["gas"] = current_time
+
             except Exception as e:
                 print(f"Error en Push: {e}") 
                 # No retornamos error 400 aquí para que el ESP32 reciba el OK
