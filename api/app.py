@@ -54,6 +54,10 @@ def send_push_notification(payload_dict):
     payload_dict["id"] = unique_id
     payload_dict["timestamp"] = time.time()
 
+    # Hacer el mensaje único directamente en el backend (visible)
+    if "body" in payload_dict:
+        payload_dict["body"] = f'{payload_dict["body"]} #{unique_id}'
+
     payload = json.dumps(payload_dict)
 
     subs = redis_client.smembers("subscriptions")
