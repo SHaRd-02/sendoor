@@ -4,6 +4,7 @@ self.addEventListener("push", function(event) {
 
     if (event.data) {
         try {
+            console.log("RAW PUSH:", event.data.text());
             data = event.data.json();
         } catch (e) {
             data = {
@@ -17,8 +18,11 @@ self.addEventListener("push", function(event) {
         body: data.body || "Se detectó actividad",
         icon: "/appstore-images/ios/80.png",
         badge: "/appstore-images/ios/80.png",
-        vibrate: [200, 100, 200],
-        requireInteraction: true,
+        // Custom signature vibration pattern (distinct from common app patterns)
+        vibrate: [300, 100, 300, 100, 600],
+        // Unique tag to prevent iOS grouping/replacing notifications
+        tag: "alert-" + (data.id || Date.now()),
+        renotify: true,
         data: { url: "/" }
     };
 
