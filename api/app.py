@@ -27,6 +27,7 @@ sensor_status = {
 
 # Control de cooldown para evitar spam de notificaciones
 import time
+import random
 last_sent = {
     "door": 0,
     "gas": 0
@@ -48,8 +49,11 @@ def set_detection_state(value: bool):
 
 
 def send_push_notification(payload_dict):
-    # Agregar timestamp para hacer cada notificación única
+    # Agregar ID corto + timestamp para hacer cada notificación única
+    unique_id = random.randint(1000, 9999)
+    payload_dict["id"] = unique_id
     payload_dict["timestamp"] = time.time()
+
     payload = json.dumps(payload_dict)
 
     subs = redis_client.smembers("subscriptions")
