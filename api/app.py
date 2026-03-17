@@ -71,7 +71,7 @@ def send_push_notification(payload_dict):
                 data=payload,
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims=VAPID_CLAIMS,
-                ttl=60
+                ttl=300
             )
 
             print("Push notification sent")
