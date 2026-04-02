@@ -35,17 +35,16 @@ last_sent = {
 COOLDOWN_SECONDS = 5
 
 # Control remoto de detección (guardado en Redis)
-def detection_enabled():
-    state = redis_client.get("detection_enabled")
+def get_sensor_state(sensor):
+    state = redis_client.get(f"detection:{sensor}")
     if state is None:
-        # default habilitado
-        redis_client.set("detection_enabled", "true")
+        redis_client.set(f"detection:{sensor}", "true")
         return True
     return state == "true"
 
 
-def set_detection_state(value: bool):
-    redis_client.set("detection_enabled", "true" if value else "false")
+def set_sensor_state(sensor, value: bool):
+    redis_client.set(f"detection:{sensor}", "true" if value else "false")
 
 
 def send_push_notification(payload_dict):
@@ -102,20 +101,23 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Malformed JSON"}).encode())
             return
 
-        # Control remoto de detección
-        if "detection" in data:
-            new_state = data.get("detection")
+        # Control remoto por sensor
+        if "sensor_control" in data:
+            sensor = data.get("sensor_control")
+            state = data.get("state")
 
-            if isinstance(new_state, bool):
-                set_detection_state(new_state)
-            elif isinstance(new_state, str):
-                set_detection_state(new_state.lower() in ["true", "on", "1", "enabled"])
+            if sensor in ["door", "gas"]:
+                if isinstance(state, bool):
+                    set_sensor_state(sensor, state)
+                elif isinstance(state, str):
+                    set_sensor_state(sensor, state.lower() in ["true", "on", "1", "enabled"])
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({
-                "detection": detection_enabled()
+                "door": get_sensor_state("door"),
+                "gas": get_sensor_state("gas")
             }).encode())
             return
 
@@ -137,13 +139,11 @@ class handler(BaseHTTPRequestHandler):
             
             # Notificaciones Push (solo si detección está habilitada + cooldown)
             try:
-                if not detection_enabled():
-                    print("Detección deshabilitada, no se envía push")
-                else:
-                    current_time = time.time()
+                current_time = time.time()
 
-                    # DOOR
-                    if sensor == "door" and status == "open":
+                # DOOR
+                if sensor == "door" and status == "open":
+                    if get_sensor_state("door"):
                         if current_time - last_sent["door"] > COOLDOWN_SECONDS:
                             send_push_notification({
                                 "title": "Alerta Puerta",
@@ -151,8 +151,9 @@ class handler(BaseHTTPRequestHandler):
                             })
                             last_sent["door"] = current_time
 
-                    # GAS
-                    if sensor == "gas" and (status == "alert" or status == "danger"):
+                # GAS
+                if sensor == "gas" and (status == "alert" or status == "danger"):
+                    if get_sensor_state("gas"):
                         if current_time - last_sent["gas"] > COOLDOWN_SECONDS:
                             send_push_notification({
                                 "title": "Alerta Gas",
@@ -175,7 +176,10 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         response = {
             "sensors": sensor_status,
-            "detection_enabled": detection_enabled()
+            "detection": {
+                "door": get_sensor_state("door"),
+                "gas": get_sensor_state("gas")
+            }
         }
 
         self.wfile.write(json.dumps(response).encode())

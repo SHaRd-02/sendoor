@@ -49,8 +49,13 @@ h1{
 <div class="stack layout-readable">
 
   <div class="box split">
-    <label for="">Activate Sensors</label>
-    <input type="checkbox" id="detectionToggle" class="toggle" style="--toggle-color: var(--green)" />
+    <label for="">Door Notifications</label>
+    <input type="checkbox" id="doorToggle" class="toggle" style="--toggle-color: var(--green)" />
+  </div>
+
+  <div class="box split">
+    <label for="">Gas Notifications</label>
+    <input type="checkbox" id="gasToggle" class="toggle" style="--toggle-color: var(--green)" />
   </div>
 
   <div class="box">
@@ -193,9 +198,9 @@ function getSensors(){
 
     }
 
-    if(typeof data.detection_enabled !== "undefined"){
-      const toggle = document.getElementById("detectionToggle");
-      toggle.checked = data.detection_enabled;
+    if(data.detection){
+      document.getElementById("doorToggle").checked = data.detection.door;
+      document.getElementById("gasToggle").checked = data.detection.gas;
     }
 
   })
@@ -205,32 +210,36 @@ function getSensors(){
 
 }
 
-const detectionToggle = document.getElementById("detectionToggle");
+const doorToggle = document.getElementById("doorToggle");
+const gasToggle = document.getElementById("gasToggle");
 
-if(detectionToggle){
+async function updateSensorToggle(sensor, state){
+  try{
+    await fetch("/api/app",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({
+        sensor_control: sensor,
+        state: state
+      })
+    });
+  }catch(err){
+    console.log("Error updating sensor toggle", err);
+  }
+}
 
-  detectionToggle.addEventListener("change", async (e)=>{
-
-    const enabled = e.target.checked;
-
-    try{
-
-      await fetch("/api/app",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body: JSON.stringify({ detection: enabled })
-      });
-
-      console.log("Detection state updated:", enabled);
-
-    }catch(err){
-      console.log("Error updating detection state", err);
-    }
-
+if(doorToggle){
+  doorToggle.addEventListener("change", (e)=>{
+    updateSensorToggle("door", e.target.checked);
   });
+}
 
+if(gasToggle){
+  gasToggle.addEventListener("change", (e)=>{
+    updateSensorToggle("gas", e.target.checked);
+  });
 }
 
 askNotificationPermission();
