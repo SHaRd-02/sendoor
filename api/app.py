@@ -22,6 +22,7 @@ VAPID_CLAIMS = {
 
 sensor_status = {
     "door": "closed",
+    "garden_door": "closed",
     "gas": "normal"
 }
 
@@ -30,6 +31,7 @@ import time
 import random
 last_sent = {
     "door": 0,
+    "garden_door": 0,
     "gas": 0
 }
 COOLDOWN_SECONDS = 5
@@ -106,7 +108,7 @@ class handler(BaseHTTPRequestHandler):
             sensor = data.get("sensor_control")
             state = data.get("state")
 
-            if sensor in ["door", "gas"]:
+            if sensor in ["door", "garden_door", "gas"]:
                 if isinstance(state, bool):
                     set_sensor_state(sensor, state)
                 elif isinstance(state, str):
@@ -117,6 +119,7 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({
                 "door": get_sensor_state("door"),
+                "garden_door": get_sensor_state("garden_door"),
                 "gas": get_sensor_state("gas")
             }).encode())
             return
@@ -151,6 +154,16 @@ class handler(BaseHTTPRequestHandler):
                             })
                             last_sent["door"] = current_time
 
+                # GARDEN DOOR
+                if sensor == "garden_door" and status == "open":
+                    if get_sensor_state("garden_door"):
+                        if current_time - last_sent["garden_door"] > COOLDOWN_SECONDS:
+                            send_push_notification({
+                                "title": "Alerta Puerta Jardín",
+                                "body": "Abierta"
+                            })
+                            last_sent["garden_door"] = current_time
+
                 # GAS
                 if sensor == "gas" and (status == "alert" or status == "danger"):
                     if get_sensor_state("gas"):
@@ -178,6 +191,7 @@ class handler(BaseHTTPRequestHandler):
             "sensors": sensor_status,
             "detection": {
                 "door": get_sensor_state("door"),
+                "garden_door": get_sensor_state("garden_door"),
                 "gas": get_sensor_state("gas")
             }
         }
