@@ -62,24 +62,25 @@ def send_push_notification(payload_dict):
     subs = redis_client.smembers("subscriptions")
 
     for sub_json in subs:
-        sub = json.loads(sub_json)
-
         try:
+            sub = json.loads(sub_json)
+            print(f"Enviando a: {sub.get('endpoint')[:30]}...")
             webpush(
                 subscription_info=sub,
                 data=payload,
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims=VAPID_CLAIMS,
-                ttl=300
+                ttl=86400 # 24 horas para asegurar entrega
             )
-
-            print("Push notification sent")
+            print("✅ Push notification sent successfully")
 
         except WebPushException as ex:
-            print("Push failed:", ex)
-
+            print(f"❌ Push failed: {ex}")
             if ex.response and ex.response.status_code in [404, 410]:
+                print("Eliminando suscripción caducada")
                 redis_client.srem("subscriptions", sub_json)
+        except Exception as e:
+            print(f"⚠️ Error general en webpush: {e}")
 
 class handler(BaseHTTPRequestHandler):
 
