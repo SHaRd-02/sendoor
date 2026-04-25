@@ -3,8 +3,6 @@ import json
 from pywebpush import webpush, WebPushException
 import os
 import redis
-import time
-import random
 
 # Intentamos obtener cualquiera de las dos, priorizando REDIS_URL
 redis_url = os.environ.get("KV_REDIS_URL") or os.environ.get("REDIS_URL")
@@ -24,28 +22,25 @@ VAPID_CLAIMS = {
 
 sensor_status = {
     "door": "closed",
-    "garden_door": "closed",
     "gas": "normal"
 }
 
 # Control de cooldown para evitar spam de notificaciones
+import time
+import random
 last_sent = {
     "door": 0,
-    "garden_door": 0,
     "gas": 0
 }
 COOLDOWN_SECONDS = 5
 
 # Control remoto de detección (guardado en Redis)
 def get_sensor_state(sensor):
-    try:
-        state = redis_client.get(f"detection:{sensor}")
-        if state is None:
-            redis_client.set(f"detection:{sensor}", "true")
-            return True
-        return state == "true"
-    except:
+    state = redis_client.get(f"detection:{sensor}")
+    if state is None:
+        redis_client.set(f"detection:{sensor}", "true")
         return True
+    return state == "true"
 
 
 def set_sensor_state(sensor, value: bool):
@@ -64,15 +59,12 @@ def send_push_notification(payload_dict):
 
     payload = json.dumps(payload_dict)
 
-    try:
-        subs = redis_client.smembers("subscriptions")
-    except:
-        print("Error accessing Redis for subscriptions")
-        return
+    subs = redis_client.smembers("subscriptions")
 
     for sub_json in subs:
+        sub = json.loads(sub_json)
+
         try:
-            sub = json.loads(sub_json)
             webpush(
                 subscription_info=sub,
                 data=payload,
@@ -80,13 +72,14 @@ def send_push_notification(payload_dict):
                 vapid_claims=VAPID_CLAIMS,
                 ttl=300
             )
+
             print("Push notification sent")
+
         except WebPushException as ex:
             print("Push failed:", ex)
+
             if ex.response and ex.response.status_code in [404, 410]:
                 redis_client.srem("subscriptions", sub_json)
-        except Exception as e:
-            print("General error in webpush:", e)
 
 class handler(BaseHTTPRequestHandler):
 
@@ -113,7 +106,7 @@ class handler(BaseHTTPRequestHandler):
             sensor = data.get("sensor_control")
             state = data.get("state")
 
-            if sensor in ["door", "garden_door", "gas"]:
+            if sensor in ["door", "gas"]:
                 if isinstance(state, bool):
                     set_sensor_state(sensor, state)
                 elif isinstance(state, str):
@@ -124,7 +117,6 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({
                 "door": get_sensor_state("door"),
-                "garden_door": get_sensor_state("garden_door"),
                 "gas": get_sensor_state("gas")
             }).encode())
             return
@@ -152,27 +144,17 @@ class handler(BaseHTTPRequestHandler):
                 # DOOR
                 if sensor == "door" and status == "open":
                     if get_sensor_state("door"):
-                        if current_time - last_sent.get("door", 0) > COOLDOWN_SECONDS:
+                        if current_time - last_sent["door"] > COOLDOWN_SECONDS:
                             send_push_notification({
                                 "title": "Alerta Puerta",
                                 "body": "Abierta"
                             })
                             last_sent["door"] = current_time
 
-                # GARDEN DOOR
-                if sensor == "garden_door" and status == "open":
-                    if get_sensor_state("garden_door"):
-                        if current_time - last_sent.get("garden_door", 0) > COOLDOWN_SECONDS:
-                            send_push_notification({
-                                "title": "Alerta Puerta Jardín",
-                                "body": "Abierta"
-                            })
-                            last_sent["garden_door"] = current_time
-
                 # GAS
                 if sensor == "gas" and (status == "alert" or status == "danger"):
                     if get_sensor_state("gas"):
-                        if current_time - last_sent.get("gas", 0) > COOLDOWN_SECONDS:
+                        if current_time - last_sent["gas"] > COOLDOWN_SECONDS:
                             send_push_notification({
                                 "title": "Alerta Gas",
                                 "body": "Peligro detectado"
@@ -181,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
 
             except Exception as e:
                 print(f"Error en Push: {e}") 
+                # No retornamos error 400 aquí para que el ESP32 reciba el OK
         
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -195,7 +178,6 @@ class handler(BaseHTTPRequestHandler):
             "sensors": sensor_status,
             "detection": {
                 "door": get_sensor_state("door"),
-                "garden_door": get_sensor_state("garden_door"),
                 "gas": get_sensor_state("gas")
             }
         }

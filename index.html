@@ -54,11 +54,6 @@ h1{
   </div>
 
   <div class="box split">
-    <label for="">Garden Door Notifications</label>
-    <input type="checkbox" id="gardenDoorToggle" class="toggle" style="--toggle-color: var(--green)" />
-  </div>
-
-  <div class="box split">
     <label for="">Gas Notifications</label>
     <input type="checkbox" id="gasToggle" class="toggle" style="--toggle-color: var(--green)" />
   </div>
@@ -67,13 +62,6 @@ h1{
     <h5>Door Sensor</h5>
     <div class="split">
       <div class="value" id="door">Waiting...</div>
-    </div>
-  </div>
-
-  <div class="box">
-    <h5>Garden Door Sensor</h5>
-    <div class="split">
-      <div class="value" id="garden_door">Waiting...</div>
     </div>
   </div>
 
@@ -202,12 +190,6 @@ function getSensors(){
         doorEl.className = "value " + data.sensors.door;
       }
 
-      if(data.sensors.garden_door){
-        const gdoorEl = document.getElementById("garden_door");
-        gdoorEl.innerText = data.sensors.garden_door;
-        gdoorEl.className = "value " + data.sensors.garden_door;
-      }
-
       if(data.sensors.gas){
         const gasEl = document.getElementById("gas");
         gasEl.innerText = data.sensors.gas;
@@ -218,7 +200,6 @@ function getSensors(){
 
     if(data.detection){
       document.getElementById("doorToggle").checked = data.detection.door;
-      document.getElementById("gardenDoorToggle").checked = data.detection.garden_door;
       document.getElementById("gasToggle").checked = data.detection.gas;
     }
 
@@ -230,7 +211,6 @@ function getSensors(){
 }
 
 const doorToggle = document.getElementById("doorToggle");
-const gardenDoorToggle = document.getElementById("gardenDoorToggle");
 const gasToggle = document.getElementById("gasToggle");
 
 async function updateSensorToggle(sensor, state){
@@ -253,12 +233,6 @@ async function updateSensorToggle(sensor, state){
 if(doorToggle){
   doorToggle.addEventListener("change", (e)=>{
     updateSensorToggle("door", e.target.checked);
-  });
-}
-
-if(gardenDoorToggle){
-  gardenDoorToggle.addEventListener("change", (e)=>{
-    updateSensorToggle("garden_door", e.target.checked);
   });
 }
 
